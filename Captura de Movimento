@@ -2,7 +2,7 @@ import cv2
 import sys
 import numpy as np
 
-cor_contorno = (255, 0, 0)
+cor_contorno = (0, 255, 0)
 video = ""
 algoritmo = ["MOG", "MOG2"]
 algoritmo_usado = algoritmo[1]
