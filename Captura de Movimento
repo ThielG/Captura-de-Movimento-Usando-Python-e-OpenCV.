@@ -1,0 +1,72 @@
+import cv2
+import sys
+import numpy as np
+
+cor_contorno = (255, 0, 0)
+video = ""
+algoritmo = ["MOG", "MOG2"]
+algoritmo_usado = algoritmo[1]
+
+def kernel(tipo_kernel):
+    if tipo_kernel == "dilatação":
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    elif tipo_kernel == "opening":
+        kernel = np.ones((3, 3), np.uint8)
+    elif tipo_kernel == "closing":
+        kernel = np.ones((3, 3), np.uint8)
+    return kernel
+
+def sub_fundo(tipo_bgs):
+    if tipo_bgs == "MOG":
+        return cv2.bgsegm.createBackgroundSubtractorMOG()
+    if tipo_bgs == "MOG2":
+        return cv2.createBackgroundSubtractorMOG2()
+    print("Detector inválido")
+    sys.exit(1)
+
+def filtros(imagem, filtro):
+    if filtro == 'combinar':
+        closing = cv2.morphologyEx(imagem, cv2.MORPH_CLOSE, kernel("closing"), iterations=2)
+        opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, kernel("opening"), iterations=2)
+        dilatação = cv2.dilate(opening, kernel("dilatação"), iterations=2)
+        return dilatação
+
+captura = cv2.VideoCapture(video)
+area_minima = 250
+subtracao = sub_fundo(algoritmo_usado)
+
+def main():
+
+    while (captura.isOpened):
+
+        ok, frame = captura.read()
+        if not ok:
+            print("Erro ou fim de video.")
+            break
+
+        frame = cv2.resize(frame, (0, 0), fx=0.50, fy=0.50)
+
+        bgs_mascara = subtracao.apply(frame)
+        bgs_mascara = filtros(bgs_mascara, 'combinar')
+        bgs_mascara = cv2.medianBlur(bgs_mascara, 5)
+
+        (contorno, hierarquia) = cv2.findContours(bgs_mascara, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for cnt in contorno:
+            area = cv2.contourArea(cnt)
+            if area >= area_minima:
+                x, y, largura, altura = cv2.boundingRect(cnt)
+
+                cv2.drawContours(frame, cnt, -1, cor_contorno, 3)
+                cv2.drawContours(frame, cnt, -1, (255,255,255), 1)
+                cv2.rectangle(frame, (x, y), (x + largura, y + altura), cor_contorno, 3)
+                cv2.rectangle(frame, (x, y), (x + largura, y + altura), (255,255,255), 1)
+
+        resultado = cv2.bitwise_and(frame, frame, mask = bgs_mascara)
+        cv2.imshow('Movimentos', frame)
+        cv2.imshow('Filtro', resultado)
+
+        if cv2.waitKey(1) == 27:
+            break
+
+main()
